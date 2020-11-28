@@ -96,22 +96,23 @@ func listIssues(repo *Repository) {
 // Prompt user for issue number and display the issue.
 func readIssue(repo *Repository) {
 	issues := repo.Issues
-	var issueNumber int
-	var err error
-	for {
-		issueNumber, err, _ = promptInt("\n  Enter an issue number: ")
-		if err != nil {
+	var (
+		issueNumber int
+		err         error
+		in          string
+	)
 
-		}
-		if issueNumber < 1 || issueNumber > repo.TotalIssues {
-			fmt.Printf("[!] Invalid isssue number: %d. Valid issues are 1-%d\n", issueNumber, repo.TotalIssues)
+	for {
+		issueNumber, err, in = promptInt("\n  Enter an issue number: ")
+		if err != nil || issueNumber < 1 || issueNumber > repo.TotalIssues {
+			fmt.Printf("[!] Invalid isssue number: %s. Valid issues are 1-%d\n", in, repo.TotalIssues)
 			continue
 		}
 		break // We have a valid issue number
 	}
+
 	issueIndex := issueNumber - 1
 	issue := &(*issues)[issueIndex]
-
 	dateString := strings.Split(issue.CreatedAt, "T")[0]
 	fmt.Printf("\nTitle:  %s\nAuthor: %s\nDate:   %s\nState:  %s\n\n%s\n", issue.Title, issue.User.Login, dateString, strings.Title(issue.State), issue.Body)
 }
