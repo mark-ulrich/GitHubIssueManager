@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -33,4 +35,24 @@ func readInt() (int, error, string) {
 func promptInt(prompt string) (int, error, string) {
 	fmt.Print(prompt)
 	return readInt()
+}
+
+// Open an external text editor, and return the text which was created/edited
+// within the external editor.
+func editWithExternalEditor(name string) (string, error) {
+	var err error
+	file, err := ioutil.TempFile("", name)
+	if err != nil {
+		return "", err
+	}
+	file.Close()
+	editorCmd := exec.Command("sublime_text.exe", file.Name())
+	err = editorCmd.Run()
+	if err != nil {
+		return "", err
+	}
+	data, err := ioutil.ReadFile(file.Name())
+	text := strings.TrimSpace(string(data)) + "\n"
+	err = os.Remove(file.Name())
+	return text, err
 }

@@ -142,10 +142,14 @@ func createIssue(repo *Repository) error {
 		return err
 	}
 	title = strings.TrimSpace(title)
+	body, err := editWithExternalEditor(title)
+	if err != nil {
+		return err
+	}
 
 	requestBody, err := json.Marshal(map[string]string{
 		"title": fmt.Sprintf("%s", title),
-		"body":  "TEST BODY\n",
+		"body":  body,
 	})
 	if err != nil {
 		return err
