@@ -191,7 +191,7 @@ func updateIssue(repo *Repository, id int) error {
 	return nil
 }
 
-// Delete an issue with the specified index.
-func deleteIssue(repo *Repository, index int) error {
-	return nil
+// Delete an issue.
+func deleteIssue(repo *Repository) error {
+	return fmt.Errorf("The GitHub API does not currently support deleting issues")
 }
