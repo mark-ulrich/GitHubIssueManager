@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 type Command int
@@ -25,10 +26,12 @@ const (
 
 var (
 	appBaseName string
+	settings    Settings
 )
 
 var (
-	token = flag.String("token", "", "GitHub Personal Access Token")
+	token  = flag.String("token", "", "GitHub Personal Access Token")
+	editor = flag.String("editor", "", "Preferred external text editor")
 )
 
 func main() {
@@ -44,6 +47,19 @@ func main() {
 		Name:    flag.CommandLine.Args()[0],
 		Token:   *token,
 		IsDirty: true,
+	}
+
+	loadSettings(&settings, defaultSettingsFilename)
+	if len(*editor) > 0 {
+		settings.EditorCommand = *editor
+	}
+	if settings.EditorCommand == "" {
+		switch runtime.GOOS {
+		case "windows":
+			settings.EditorCommand = "notepad.exe"
+		case "linux":
+			settings.EditorCommand = "vi"
+		}
 	}
 
 	isQuitting := false

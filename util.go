@@ -46,7 +46,7 @@ func editWithExternalEditor(name string) (string, error) {
 		return "", err
 	}
 	file.Close()
-	editorCmd := exec.Command("sublime_text.exe", file.Name())
+	editorCmd := exec.Command(settings.EditorCommand, file.Name())
 	err = editorCmd.Run()
 	if err != nil {
 		return "", err
