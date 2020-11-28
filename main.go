@@ -70,6 +70,7 @@ func main() {
 				log.Fatal(err.Error())
 			}
 		}
+		fmt.Println()
 		cmd := showMainMenu(&repo)
 		switch cmd {
 		case CommandList:
@@ -78,8 +79,15 @@ func main() {
 			readIssue(&repo)
 		case CommandCreate:
 			err = createIssue(&repo)
+		case CommandUpdate:
+			err = updateIssue(&repo)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "[!] Error creating issue: %s\n\n", err.Error())
+				fmt.Fprintf(os.Stderr, "[!] Error updating issue: %s\n", err.Error())
+			}
+		case CommandDelete:
+			err = deleteIssue(&repo)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[!] Error deleting issue: %s\n", err.Error())
 			}
 		case CommandRefresh:
 			repo.IsDirty = true

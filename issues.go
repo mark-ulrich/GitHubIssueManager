@@ -28,6 +28,7 @@ type IssuesSearchResult struct {
 
 type Issue struct {
 	Title     string
+	Number    int
 	User      User
 	Labels    []Label
 	State     string
@@ -142,7 +143,7 @@ func createIssue(repo *Repository) error {
 		return err
 	}
 	title = strings.TrimSpace(title)
-	body, err := editWithExternalEditor(title)
+	body, err := editWithExternalEditor(title, "")
 	if err != nil {
 		return err
 	}
@@ -166,16 +167,13 @@ func createIssue(repo *Repository) error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != http.StatusOK {
-		msg := resp.Status
-		switch resp.StatusCode {
-		case 201:
-			fmt.Printf("\n  Created issue: %s\n\n", title)
-		case 404:
-			msg = "Unauthorized"
-		default:
-			return fmt.Errorf("Failed to create issue: %s\n", msg)
-		}
+	switch resp.StatusCode {
+	case 201:
+		fmt.Printf("\n  Created issue: %s\n\n", title)
+	case 404:
+		return fmt.Errorf("Failed to create issue: Unauthorized\n")
+	default:
+		return fmt.Errorf("Failed to create issue: %s\n", resp.Status)
 	}
 	resp.Body.Close()
 
@@ -187,7 +185,61 @@ func createIssue(repo *Repository) error {
 
 // Update an existing issue. Invoke a configurable preferred text editor
 // to edit the issue.
-func updateIssue(repo *Repository, id int) error {
+func updateIssue(repo *Repository) error {
+
+	if repo.Token == "" {
+		return fmt.Errorf("You must supply a Personal Access Token to create an issue")
+	}
+
+	var issue *Issue
+	for {
+		issueNumber, err, in := promptInt("\n  Enter an issue number: ")
+		if err != nil || issueNumber < 1 || issueNumber > repo.TotalIssues {
+			fmt.Printf("[!] Invalid isssue number: %s. Valid issues are 1-%d\n", in, repo.TotalIssues)
+			continue
+		}
+		issue = &(*repo.Issues)[issueNumber-1]
+		break
+	}
+
+	body, err := editWithExternalEditor(issue.Title, issue.Body)
+	if err != nil {
+		return err
+	}
+
+	requestBody, err := json.Marshal(map[string]string{
+		"title": fmt.Sprintf("%s", issue.Title),
+		"body":  body,
+	})
+	if err != nil {
+		return err
+	}
+	url := fmt.Sprintf("%srepos/%s/issues/%d", githubAPIBaseURL, repo.Name, issue.Number)
+	fmt.Println(url)
+	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("token %s", repo.Token))
+	req.Header.Add("Content-type", "application/json")
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	switch resp.StatusCode {
+	case 200:
+		fmt.Printf("\n  Updated issue: %s\n\n", issue.Title)
+	case 404:
+		return fmt.Errorf("Failed to update issue: Unauthorized\n")
+	default:
+		return fmt.Errorf("Failed to update issue: %s\n", resp.Status)
+	}
+	resp.Body.Close()
+
+	// Force update of local repo data
+	repo.IsDirty = true
+
 	return nil
 }
 

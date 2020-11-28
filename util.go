@@ -39,9 +39,13 @@ func promptInt(prompt string) (int, error, string) {
 
 // Open an external text editor, and return the text which was created/edited
 // within the external editor.
-func editWithExternalEditor(name string) (string, error) {
+func editWithExternalEditor(name string, text string) (string, error) {
 	var err error
 	file, err := ioutil.TempFile("", name)
+	if err != nil {
+		return "", err
+	}
+	_, err = file.WriteString(text)
 	if err != nil {
 		return "", err
 	}
@@ -52,7 +56,7 @@ func editWithExternalEditor(name string) (string, error) {
 		return "", err
 	}
 	data, err := ioutil.ReadFile(file.Name())
-	text := strings.TrimSpace(string(data)) + "\n"
+	text = strings.TrimSpace(string(data)) + "\n"
 	err = os.Remove(file.Name())
 	return text, err
 }

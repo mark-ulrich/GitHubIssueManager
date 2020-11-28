@@ -53,7 +53,6 @@ func loadSettings(settings *Settings, filename string) error {
 			return fmt.Errorf("Reading settings file %s: Line %d: Malformed\n", filename, lineno)
 		}
 		key, value := strings.ToLower(strings.TrimSpace(pair[0])), strings.TrimSpace(pair[1])
-		fmt.Printf("key='%s'\nvalue='%s'", key, value)
 		switch key {
 		case "editor":
 			settings.EditorCommand = value
