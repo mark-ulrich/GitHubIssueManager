@@ -3,13 +3,35 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
+
+type Command int
+
+const (
+	CommandInvalid Command = iota
+	CommandQuit
+	CommandCreate
+	CommandRead
+	CommandUpdate
+	CommandDelete
+	CommandList
+)
+
+type Repository struct {
+	Name           string
+	TotalIssues    int
+	OpenIssueCount int
+	Issues         *[]Issue
+}
 
 type IssuesSearchResult struct {
 	TotalCount int `json:"total_count"`
@@ -47,11 +69,27 @@ func main() {
 
 	appBaseName = filepath.Base(os.Args[0])
 	checkParms()
-	repoName := os.Args[1]
-	_, err := fetchIssues(repoName)
+
+	repo := Repository{Name: os.Args[1]}
+	_, err := fetchIssues(&repo)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+
+	isQuitting := false
+	for !isQuitting {
+		cmd := showMainMenu(&repo)
+		switch cmd {
+		case CommandList:
+			listIssues(&repo)
+		case CommandQuit:
+			fmt.Printf("Quitting...\n")
+			isQuitting = true
+		case CommandInvalid:
+			fmt.Printf("[!] Invalid Command\n ")
+		}
+	}
+
 }
 
 func checkParms() {
@@ -61,18 +99,37 @@ func checkParms() {
 	}
 }
 
+// Reads an integer from standard input. On error, the returned int will be 0,
+// and the error will be returned the caller along with the actual read string.
+func readInt() (int, error, string) {
+	reader := bufio.NewReader(os.Stdin)
+	in, err := reader.ReadString('\n')
+	if err != nil {
+		return 0, err, in
+	}
+	in = strings.ToLower(strings.TrimSpace(in))
+	if err != nil {
+		return 0, err, in
+	}
+	num, err := strconv.Atoi(in)
+	if err != nil {
+		return num, err, in
+	}
+	return num, nil, in
+}
+
 // fetchIssues retrieves a list of issues for a named GitHub repository
-func fetchIssues(repoName string) (*IssuesSearchResult, error) {
+func fetchIssues(repo *Repository) (*IssuesSearchResult, error) {
 
 	// Perform search
-	url := githubIssueSearchBaseUrl + "repo:" + repoName
+	url := githubIssueSearchBaseUrl + "repo:" + repo.Name
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode == 422 {
 		resp.Body.Close()
-		return nil, fmt.Errorf("Unable to find repository: %s (Do you have permission to access this repository?)", repoName)
+		return nil, fmt.Errorf("Unable to find repository: %s (Do you have permission to access this repository?)", repo.Name)
 	} else if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
 		return nil, fmt.Errorf("fetch failed: %s", resp.Status)
@@ -86,5 +143,79 @@ func fetchIssues(repoName string) (*IssuesSearchResult, error) {
 		return nil, err
 	}
 
+	// Fill out repo struct
+	repo.Issues = &results.Items
+	repo.TotalIssues = results.TotalCount
+	for _, issue := range *repo.Issues {
+		if issue.State == "open" {
+			repo.OpenIssueCount++
+		}
+	}
+
 	return &results, nil
+}
+
+// showMainMenu displays the programs main menu and reads an input string. It
+// returns a Command based on the input.
+func showMainMenu(repo *Repository) Command {
+	menuOptions := []string{
+		"List Issues",
+		"Read Issue",
+		"Create Issue",
+		"Update Issue",
+		"Delete Issue",
+		"Quit",
+	}
+
+	fmt.Printf("\n[ Repo: %s ] Issues: %d (%d open / %d closed)\n", repo.Name, repo.TotalIssues, repo.OpenIssueCount, repo.TotalIssues-repo.OpenIssueCount)
+	for i, str := range menuOptions {
+		fmt.Printf("  (%d)  %s\n", i+1, str)
+	}
+	fmt.Print("  > ")
+
+	selected, err, in := readInt()
+	if err != nil {
+		in = strings.ToLower(strings.TrimSpace(in))
+		if in == "q" || in == "quit" {
+			return CommandQuit
+		}
+		return CommandInvalid
+	}
+
+	if selected < 1 || selected > len(menuOptions) {
+		return CommandInvalid
+	}
+
+	selected--
+	switch strings.ToLower(strings.Split(menuOptions[selected], " ")[0]) {
+	case "read":
+		return CommandRead
+	case "update":
+		return CommandUpdate
+	case "delete":
+		return CommandDelete
+	case "create":
+		return CommandCreate
+	case "quit":
+		return CommandQuit
+	case "list":
+		return CommandList
+	}
+
+	return CommandInvalid
+}
+
+func listIssues(repo *Repository) {
+	issues := repo.Issues
+	fmt.Println()
+	for _, issue := range *issues {
+		const MaxTitleLength = 20
+		dateString := strings.Split(issue.CreatedAt, "T")[0]
+		title := issue.Title
+		if len(title) > MaxTitleLength {
+			title = title[:MaxTitleLength-3] + "..."
+		}
+		stateString := fmt.Sprintf("[%s]", strings.Title(issue.State))
+		fmt.Printf("%-20s %-10s %s\n", title, stateString, dateString)
+	}
 }
