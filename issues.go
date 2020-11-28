@@ -116,3 +116,20 @@ func readIssue(repo *Repository) {
 	dateString := strings.Split(issue.CreatedAt, "T")[0]
 	fmt.Printf("\nTitle:  %s\nAuthor: %s\nDate:   %s\nState:  %s\n\n%s\n", issue.Title, issue.User.Login, dateString, strings.Title(issue.State), issue.Body)
 }
+
+// Create a new issue and add it to the repository. Invoke a configurable
+// preferred text editor to edit the issue.
+func createIssue(repo *Repository) error {
+	return nil
+}
+
+// Update an existing issue. Invoke a configurable preferred text editor
+// to edit the issue.
+func updateIssue(repo *Repository, id int) error {
+	return nil
+}
+
+// Delete an issue with the specified index.
+func deleteIssue(repo *Repository, index int) error {
+	return nil
+}
