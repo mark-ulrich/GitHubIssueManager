@@ -124,7 +124,7 @@ func readInt() (int, error, string) {
 // Displays the given promp and calls readInt() to read an integer from standard
 // input. On error, the returned int is 0 and the error will be returned the
 // caller along with the actual read string.
-func prompInt(prompt string) (int, error, string) {
+func promptInt(prompt string) (int, error, string) {
 	fmt.Print(prompt)
 	return readInt()
 }
@@ -182,7 +182,7 @@ func showMainMenu(repo *Repository) Command {
 	for i, str := range menuOptions {
 		fmt.Printf("  (%d)  %s\n", i+1, str)
 	}
-	selected, err, in := prompInt("  > ")
+	selected, err, in := promptInt("  > ")
 	if err != nil {
 		in = strings.ToLower(strings.TrimSpace(in))
 		if in == "q" || in == "quit" {
@@ -214,21 +214,42 @@ func showMainMenu(repo *Repository) Command {
 	return CommandInvalid
 }
 
+// List all issues in the repository.
 func listIssues(repo *Repository) {
 	issues := repo.Issues
 	fmt.Println()
-	for _, issue := range *issues {
-		const MaxTitleLength = 20
+	for i, issue := range *issues {
+		const MaxTitleLength = 40
 		dateString := strings.Split(issue.CreatedAt, "T")[0]
 		title := issue.Title
 		if len(title) > MaxTitleLength {
 			title = title[:MaxTitleLength-3] + "..."
 		}
 		stateString := fmt.Sprintf("[%s]", strings.Title(issue.State))
-		fmt.Printf("%-20s %-10s %s\n", title, stateString, dateString)
+		numberString := fmt.Sprintf("[%d]", i+1)
+		fmt.Printf("%-8s%-60s %-10s %s\n", numberString, title, stateString, dateString)
 	}
 }
 
+// Prompt user for issue number and display the issue.
 func readIssue(repo *Repository) {
-	// issues := repo.Issues
+	issues := repo.Issues
+	var issueNumber int
+	var err error
+	for {
+		issueNumber, err, _ = promptInt("\n  Enter an issue number: ")
+		if err != nil {
+
+		}
+		if issueNumber < 1 || issueNumber > repo.TotalIssues {
+			fmt.Printf("[!] Invalid isssue number: %d. Valid issues are 1-%d\n", issueNumber, repo.TotalIssues)
+			continue
+		}
+		break // We have a valid issue number
+	}
+	issueIndex := issueNumber - 1
+	issue := &(*issues)[issueIndex]
+
+	dateString := strings.Split(issue.CreatedAt, "T")[0]
+	fmt.Printf("\nTitle:  %s\nAuthor: %s\nDate:   %s\nState:  %s\n\n%s\n", issue.Title, issue.User.Login, dateString, strings.Title(issue.State), issue.Body)
 }
