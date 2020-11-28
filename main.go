@@ -82,6 +82,8 @@ func main() {
 		switch cmd {
 		case CommandList:
 			listIssues(&repo)
+		case CommandRead:
+			readIssue(&repo)
 		case CommandQuit:
 			fmt.Printf("Quitting...\n")
 			isQuitting = true
@@ -92,6 +94,7 @@ func main() {
 
 }
 
+// Verify the user has supplied the necessary command-line arguments.
 func checkParms() {
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "usage: %s <repo>\n", appBaseName)
@@ -116,6 +119,14 @@ func readInt() (int, error, string) {
 		return num, err, in
 	}
 	return num, nil, in
+}
+
+// Displays the given promp and calls readInt() to read an integer from standard
+// input. On error, the returned int is 0 and the error will be returned the
+// caller along with the actual read string.
+func prompInt(prompt string) (int, error, string) {
+	fmt.Print(prompt)
+	return readInt()
 }
 
 // fetchIssues retrieves a list of issues for a named GitHub repository
@@ -171,9 +182,7 @@ func showMainMenu(repo *Repository) Command {
 	for i, str := range menuOptions {
 		fmt.Printf("  (%d)  %s\n", i+1, str)
 	}
-	fmt.Print("  > ")
-
-	selected, err, in := readInt()
+	selected, err, in := prompInt("  > ")
 	if err != nil {
 		in = strings.ToLower(strings.TrimSpace(in))
 		if in == "q" || in == "quit" {
@@ -218,4 +227,8 @@ func listIssues(repo *Repository) {
 		stateString := fmt.Sprintf("[%s]", strings.Title(issue.State))
 		fmt.Printf("%-20s %-10s %s\n", title, stateString, dateString)
 	}
+}
+
+func readIssue(repo *Repository) {
+	// issues := repo.Issues
 }
