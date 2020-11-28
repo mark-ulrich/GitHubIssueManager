@@ -14,10 +14,11 @@ func showMainMenu(repo *Repository) Command {
 		"Create Issue",
 		"Update Issue",
 		"Delete Issue",
+		"Refresh",
 		"Quit",
 	}
 
-	fmt.Printf("\n[ Repo: %s ] Issues: %d (%d open / %d closed)\n", repo.Name, repo.TotalIssues, repo.OpenIssueCount, repo.TotalIssues-repo.OpenIssueCount)
+	fmt.Printf("[ Repo: %s ] Issues: %d (%d open / %d closed)\n", repo.Name, repo.TotalIssues, repo.OpenIssueCount, repo.TotalIssues-repo.OpenIssueCount)
 	for i, str := range menuOptions {
 		fmt.Printf("  (%d)  %s\n", i+1, str)
 	}
@@ -48,6 +49,8 @@ func showMainMenu(repo *Repository) Command {
 		return CommandQuit
 	case "list":
 		return CommandList
+	case "refresh":
+		return CommandRefresh
 	}
 
 	return CommandInvalid

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -19,31 +20,53 @@ const (
 	CommandUpdate
 	CommandDelete
 	CommandList
+	CommandRefresh
 )
 
 var (
 	appBaseName string
 )
 
+var (
+	token = flag.String("token", "", "GitHub Personal Access Token")
+)
+
 func main() {
+
+	var err error
+
+	flag.Parse()
 
 	appBaseName = filepath.Base(os.Args[0])
 	checkParms()
 
-	repo := Repository{Name: os.Args[1]}
-	_, err := fetchIssues(&repo)
-	if err != nil {
-		log.Fatal(err.Error())
+	repo := Repository{
+		Name:    flag.CommandLine.Args()[0],
+		Token:   *token,
+		IsDirty: true,
 	}
 
 	isQuitting := false
 	for !isQuitting {
+		if repo.IsDirty {
+			_, err = fetchIssues(&repo)
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+		}
 		cmd := showMainMenu(&repo)
 		switch cmd {
 		case CommandList:
 			listIssues(&repo)
 		case CommandRead:
 			readIssue(&repo)
+		case CommandCreate:
+			err = createIssue(&repo)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[!] Error creating issue: %s\n\n", err.Error())
+			}
+		case CommandRefresh:
+			repo.IsDirty = true
 		case CommandQuit:
 			fmt.Printf("Quitting...\n")
 			isQuitting = true

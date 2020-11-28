@@ -1,17 +1,24 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 )
+
+const githubAPIBaseURL = "https://api.github.com/"
 
 type Repository struct {
 	Name           string
 	TotalIssues    int
 	OpenIssueCount int
 	Issues         *[]Issue
+	Token          string
+	IsDirty        bool
 }
 
 type IssuesSearchResult struct {
@@ -42,8 +49,7 @@ type Label struct {
 func fetchIssues(repo *Repository) (*IssuesSearchResult, error) {
 
 	// Perform search
-	const githubIssueSearchBaseUrl = "https://api.github.com/search/issues?q="
-	url := githubIssueSearchBaseUrl + "repo:" + repo.Name
+	url := githubAPIBaseURL + "search/issues?q=repo:" + repo.Name
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -67,11 +73,13 @@ func fetchIssues(repo *Repository) (*IssuesSearchResult, error) {
 	// Fill out repo struct
 	repo.Issues = &results.Items
 	repo.TotalIssues = results.TotalCount
+	repo.OpenIssueCount = 0
 	for _, issue := range *repo.Issues {
 		if issue.State == "open" {
 			repo.OpenIssueCount++
 		}
 	}
+	repo.IsDirty = false
 
 	return &results, nil
 }
@@ -79,7 +87,8 @@ func fetchIssues(repo *Repository) (*IssuesSearchResult, error) {
 // List all issues in the repository.
 func listIssues(repo *Repository) {
 	issues := repo.Issues
-	fmt.Println()
+	fmt.Printf("\n#       Name                                     State      Date\n")
+	fmt.Printf("------- ---------------------------------------- ---------- ----------\n")
 	for i, issue := range *issues {
 		const MaxTitleLength = 40
 		dateString := strings.Split(issue.CreatedAt, "T")[0]
@@ -91,6 +100,7 @@ func listIssues(repo *Repository) {
 		numberString := fmt.Sprintf("[%d]", i+1)
 		fmt.Printf("%-8s%-40s %-10s %s\n", numberString, title, stateString, dateString)
 	}
+	fmt.Println()
 }
 
 // Prompt user for issue number and display the issue.
@@ -120,6 +130,54 @@ func readIssue(repo *Repository) {
 // Create a new issue and add it to the repository. Invoke a configurable
 // preferred text editor to edit the issue.
 func createIssue(repo *Repository) error {
+
+	if repo.Token == "" {
+		return fmt.Errorf("You must supply a Personal Access Token to create an issue")
+	}
+
+	fmt.Printf("  Enter title: ")
+	reader := bufio.NewReader(os.Stdin)
+	title, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	title = strings.TrimSpace(title)
+
+	requestBody, err := json.Marshal(map[string]string{
+		"title": fmt.Sprintf("%s", title),
+		"body":  "TEST BODY\n",
+	})
+	if err != nil {
+		return err
+	}
+	url := githubAPIBaseURL + "repos/" + repo.Name + "/issues"
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("token %s", repo.Token))
+	req.Header.Add("Content-type", "application/json")
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		msg := resp.Status
+		switch resp.StatusCode {
+		case 201:
+			fmt.Printf("\n  Created issue: %s\n\n", title)
+		case 404:
+			msg = "Unauthorized"
+		default:
+			return fmt.Errorf("Failed to create issue: %s\n", msg)
+		}
+	}
+	resp.Body.Close()
+
+	// Force update of local repo data
+	repo.IsDirty = true
+
 	return nil
 }
 
